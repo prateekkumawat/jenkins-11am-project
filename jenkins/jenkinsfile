@@ -15,5 +15,11 @@ pipeline {
                 sh 'docker build -t jenkinsapp:latest .'
             }
         }
+
+        stage('container create'){
+            steps{
+                sh 'docker run -dit --name jenkinsapp -p 8088:80 jenkinsapp:latest'
+            }
+        }
     }
 }
