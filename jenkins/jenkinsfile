@@ -2,6 +2,9 @@ pipeline {
     agent {
         label 'devops'
     }
+    options { 
+        buildDiscarder(logRotator(numToKeepStr: '3')) 
+    }
     parameters {
         string(name: 'ImageName', defaultValue: 'jenkinsapp')
         string(name: 'ImageTag', defaultValue: 'latest')
