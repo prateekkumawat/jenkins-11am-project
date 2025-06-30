@@ -1,0 +1,19 @@
+pipeline {
+    agent {
+        label 'devops'
+    }
+
+    stages{
+        stage('App Code Checkout'){
+          steps { 
+            git url: 'https://github.com/prateekkumawat/jenkins-11am-project.git', branch: 'master'
+          }
+        }
+
+        stage('Build Image') {
+            steps {
+                sh 'docker build -t jenkinsapp:latest .'
+            }
+        }
+    }
+}
