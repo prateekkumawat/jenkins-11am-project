@@ -6,10 +6,10 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '3')) 
     }
     parameters {
-        string(name: 'ImageName', defaultValue: 'jenkinsapp')
-        string(name: 'ImageTag', defaultValue: 'latest')
-        string(name: 'ContainerPort', defaultValue: '8088')
-        string(name: 'ContainerName', defaultValue: 'jenkinsapp')
+        string(name: 'ImageName', defaultValue: 'springboot')
+        string(name: 'ImageTag', defaultValue: 'javaapp')
+        string(name: 'ContainerPort', defaultValue: '8089')
+        string(name: 'ContainerName', defaultValue: 'springbootapptest')
     }
     environment { 
         DOCKER_REGISTRY_CREDS =  credentials('docker-registy-login')
@@ -18,7 +18,7 @@ pipeline {
     stages{
         stage('App Code Checkout'){
           steps { 
-            git url: 'https://github.com/prateekkumawat/jenkins-11am-project.git', branch: 'main'
+            git url: 'https://github.com/prateekkumawat/jenkins-11am-project.git', branch: 'spriapp'
           }
         }
         
@@ -27,9 +27,8 @@ pipeline {
                 dir('src/'){
                   withSonarQubeEnv('sonar-scanner') {
                     sh ''' $SONAR_SCANNER_HOME/bin/sonar-scanner \
-                    -Dsonar.projectName=jenkins-docker-pipeline \
-                    -Dsonar.python.version=3.11 \
-                    -Dsonar.projectKey=jenkins-docker-pipeline '''  
+                    -Dsonar.projectName=jenkins-springboot-pipeline \
+                    -Dsonar.projectKey=jenkins-springboot-pipeline '''  
                    }   
                 }
             }
