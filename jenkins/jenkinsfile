@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label 'devops'
+        label 'docker-agent'
     }
     options { 
         buildDiscarder(logRotator(numToKeepStr: '3')) 
@@ -43,9 +43,22 @@ pipeline {
             }
         }
 
+        stage("Trivy ScanFS")
+          steps{
+            dir('src/'){
+                sh "trivy fs . >> /tmp/trivyfs_scan_report.txt"
+            }
+          }
+
         stage('Build Image') {
             steps {
                 sh "docker build -t ${params:ImageName}:${params.ImageTag} ."
+            }
+        }
+
+        stage('Trivy ImageScan'){
+            steps {
+                sh "trivy image ${params:ImageName}:${params.ImageTag} >> /tmp/trivy_image_scan_report.txt"
             }
         }
         stage('Push To Registry'){
