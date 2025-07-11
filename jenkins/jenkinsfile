@@ -1,24 +1,23 @@
 pipeline {
     agent {
-        label 'docker-agent'
+        label 'cimachine'
     }
     options { 
         buildDiscarder(logRotator(numToKeepStr: '3')) 
     }
     parameters {
-        string(name: 'ImageName', defaultValue: 'jenkinsapp')
-        string(name: 'ImageTag', defaultValue: 'latest')
-        string(name: 'ContainerPort', defaultValue: '8088')
-        string(name: 'ContainerName', defaultValue: 'jenkinsapp')
+        string(name: 'ImageName', defaultValue: 'ecommarce_app')
+        string(name: 'ImageTag', defaultValue: 'appv1')
+        string(name: 'BranchName', defaultValue: 'main')
     }
     environment { 
-        DOCKER_REGISTRY_CREDS =  credentials('docker-registy-login')
+        DOCKER_REGISTRY_CREDS =  credentials('docker-registy-creds')
         SONAR_SCANNER_HOME = tool 'sonar-scanner'
     }
     stages{
         stage('App Code Checkout'){
           steps { 
-            git url: 'https://github.com/prateekkumawat/jenkins-11am-project.git', branch: 'main'
+            git url: 'https://github.com/prateekkumawat/jenkins-11am-project.git', branch: "${params.BranchName}"
           }
         }
         
@@ -27,9 +26,9 @@ pipeline {
                 dir('src/'){
                   withSonarQubeEnv('sonar-scanner') {
                     sh ''' $SONAR_SCANNER_HOME/bin/sonar-scanner \
-                    -Dsonar.projectName=jenkins-docker-pipeline \
+                    -Dsonar.projectName=docker-python-ecommarce-app \
                     -Dsonar.python.version=3.11 \
-                    -Dsonar.projectKey=jenkins-docker-pipeline '''  
+                    -Dsonar.projectKey=docker-python-ecommarce-app '''  
                    }   
                 }
             }
@@ -69,12 +68,6 @@ pipeline {
                 sh " docker push $DOCKER_REGISTRY_CREDS_USR/${params:ImageName}:${params.ImageTag} "
                 sh " docker rm -f ${params:ImageName}:${params.ImageTag} "
                 sh "docker rm -f $DOCKER_REGISTRY_CREDS_USR/${params:ImageName}:${params.ImageTag} "
-            }
-        }
-        stage('container create'){
-            steps{
-                sh "docker rm -f ${params.ContainerName}"
-                sh "docker run -dit --name ${params.ContainerName} -p ${params.ContainerPort}:80 $DOCKER_REGISTRY_CREDS_USR/${params:ImageName}:${params.ImageTag}"
             }
         }
     }
