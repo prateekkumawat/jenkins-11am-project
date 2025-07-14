@@ -10,7 +10,7 @@ pipeline {
    stages {
     stage("App Code Checkout") {
       steps {
-        git branch: "springapp", url: 'https://github.com/prateekkumawat/jenkins-mansi-project.git'
+        git branch: "apispring", url: 'https://github.com/prateekkumawat/jenkins-11am-project.git'
       }
     }
     stage("Deploy Container"){
