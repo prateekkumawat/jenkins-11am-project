@@ -1,73 +1,74 @@
 pipeline {
-    agent {
-        label 'cimachine'
+   agent {
+    label 'cimachine'
+   }
+   tools {
+    maven 'mvn'
+   }
+   options {
+    buildDiscarder(logRotator(numToKeepStr: '7'))
+    timeout(time: 1, unit: 'HOURS') 
+   }
+   parameters {
+     string(name: 'Branchname', defaultValue: 'apispring')
+     string(name: 'Imagename', defaultValue: 'springapp')
+     string(name: 'ImageTag', defaultValue: 'latest')
+   }
+   environment {
+     DOCKER_REPO_CREDS =  credentials('docker-registry-creds')
+     SCANNER_HOME = tool 'sonar-scanner'
+     SONAR_TOKEN_SECRET= credentials('sonar-token')
+   } 
+  
+   stages {
+    stage("App Code Checkout") {
+      steps {
+        git branch: "${params.Branchname}", url: 'https://github.com/prateekkumawat/jenkins-11am-project.git'
+      }
     }
-    options { 
-        buildDiscarder(logRotator(numToKeepStr: '3')) 
+    
+    stage('Sonarqube Check') {
+     steps {
+        withSonarQubeEnv('sonar-server') {
+              sh " mvn clean verify sonar:sonar \
+              -Dsonar.projectKey=jenkins-sonnar-project-maven-cicd  \
+              -Dsonar.login=${SONAR_TOKEN_SECRET} "
+      }
+     }
     }
-    parameters {
-        string(name: 'ImageName', defaultValue: 'ecommarce')
-        string(name: 'ImageTag', defaultValue: 'orederappv1')
-    }
-    environment { 
-        DOCKER_REGISTRY_CREDS =  credentials('docker-registy-login')
-        SONAR_SCANNER_HOME = tool 'sonar-scanner'
-    }
-    stages{
-        stage('App Code Checkout'){
-          steps { 
-            git url: 'https://github.com/prateekkumawat/jenkins-11am-project.git', branch: 'orders'
+    stage('QualityGate Check') {
+      steps {
+        script {
+          waitForQualityGate abortPipeline: false, credentialsId: 'sonar-token' 
           }
-        }
-        
-        stage('Sonar Analysis'){
-            steps {
-                dir('src/'){
-                  withSonarQubeEnv('sonar-scanner') {
-                    sh ''' $SONAR_SCANNER_HOME/bin/sonar-scanner \
-                    -Dsonar.projectName=docker-ecommarce-python-order \
-                    -Dsonar.python.version=3.11 \
-                    -Dsonar.projectKey=docker-ecommarce-python-order '''  
-                   }   
-                }
-            }
-        }
-
-        stage("Quality Gate") {
-            steps {
-                timeout(time: 1, unit: 'HOURS') {
-                    waitForQualityGate abortPipeline: true, credentialsId: 'sonar-token'
-                }
-            }
-        }
-
-        stage("Trivy ScanFS"){
-          steps{
-            dir('src/'){
-                sh "trivy fs . >> /tmp/trivyfs_scan_report.txt"
-            }
-          }
-        }
-        
-        stage('Build Image') {
-            steps {
-                sh "docker build -t ${params:ImageName}:${params.ImageTag} ."
-            }
-        }
-
-        stage('Trivy ImageScan'){
-            steps {
-                sh "trivy image ${params:ImageName}:${params.ImageTag} >> /tmp/trivy_image_scan_report.txt"
-            }
-        }
-        stage('Push To Registry'){
-            steps {
-                sh "docker login -u $DOCKER_REGISTRY_CREDS_USR -p $DOCKER_REGISTRY_CREDS_PSW "
-                sh "docker tag ${params:ImageName}:${params.ImageTag}  $DOCKER_REGISTRY_CREDS_USR/${params:ImageName}:${params.ImageTag}"
-                sh " docker push $DOCKER_REGISTRY_CREDS_USR/${params:ImageName}:${params.ImageTag} "
-                sh " docker rm -f ${params:ImageName}:${params.ImageTag} "
-                sh "docker rm -f $DOCKER_REGISTRY_CREDS_USR/${params:ImageName}:${params.ImageTag} "
-            }
-        }
+      }
     }
+    stage('Trivy CodeScan'){
+      steps{
+        dir('src/') {
+          sh ' trivy fs . > /tmp/trivyfs.txt'
+        }
+      }
+    }
+    
+    stage("Build Docker Image"){
+      steps {
+        sh " docker build -t ${params.Imagename}:${params.ImageTag} . "
+      }
+    }
+
+    stage("Trivy ImageScan"){
+      steps {
+        sh " trivy image ${params.Imagename}:${params.ImageTag} > /tmp/trivyimage.txt "
+      }
+    } 
+
+    stage("Tag Imageregistry"){
+      steps {
+        sh "docker tag ${params.Imagename}:${params.ImageTag}  $DOCKER_REPO_CREDS_USR/${params.Imagename}:${params.ImageTag}"
+        sh " docker login -u  $DOCKER_REPO_CREDS_USR -p $DOCKER_REPO_CREDS_PSW "
+        sh " docker push $DOCKER_REPO_CREDS_USR/${params.Imagename}:${params.ImageTag} "
+      }
+    }
+  }
 }
