@@ -1,24 +1,33 @@
 pipeline {
-   agent {
+  agent {
     label 'cimachine'
    }
-   options {
+  options {
     buildDiscarder(logRotator(numToKeepStr: '7'))
     timeout(time: 1, unit: 'HOURS') 
    }
+   
+  environment {
+        KUBECONFIG = credentials('kube-server-config') // Jenkins secret
+    }
 
-   stages {
+
+  stages {
     stage("App Code Checkout") {
       steps {
-        git branch: "apispring", url: 'https://github.com/prateekkumawat/jenkins-11am-project.git'
+        git branch: "kubernetes", url: 'https://github.com/prateekkumawat/jenkins-11am-project.git'
       }
     }
-    stage("Deploy Container"){
+    stage("Deploy pods"){
         steps {
-            sh "docker-compose up -d"
+            withCredentials([file(credentialsId: 'kube-server-config', variable: 'KUBECONFIG')]) {
+              sh """
+              kubectl apply -f mysql-server/secret.yaml
+              kubectl apply -f mysql-server/mysql-deployment.yaml
+              kubectl apply -f mysql-server/svc-clusterip.yaml
+              """
+            }
         }
-    }
-
-  }
-
+     }
+   }
 }
